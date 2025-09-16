@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<entity-facade-xml type="ext-upgrade">
+    <dataDocuments dataDocumentId="OrderItemFulfillment" documentName="Kuchh bhi"
+                   primaryEntityName="org.apache.ofbiz.order.order.OrderItem" documentTitle="Order Item Fulfillment">
+        <fields fieldSeqId="01" fieldPath="orderId"/>
+        <fields fieldSeqId="02" fieldPath="orderItemSeqId"/>
+        <fields fieldSeqId="03" fieldPath="statusId" fieldNameAlias="itemStatusId"/>
+        <fields fieldSeqId="05" fieldPath="org.apache.ofbiz.order.order.OrderShipment:shipmentItemSeqId"/>
+        <fields fieldSeqId="06" fieldPath="org.apache.ofbiz.order.order.OrderShipment:org.apache.ofbiz.shipment.shipment.Shipment:shipmentId"/>
+        <fields fieldSeqId="07" fieldPath="org.apache.ofbiz.order.order.OrderShipment:org.apache.ofbiz.shipment.shipment.Shipment:statusId" fieldNameAlias="shipmentStatusId"/>
+        <relAliases relationshipName="org.apache.ofbiz.order.order.OrderShipment" documentAlias="OrderShipment"/>
+        <relAliases relationshipName="org.apache.ofbiz.shipment.shipment.Shipment" documentAlias="Shipment"/>
+    </dataDocuments>
+
+    <moqui.entity.feed.DataFeed dataFeedId="OrderItemFulfillment" dataFeedTypeEnumId="DTFDTP_RT_PUSH"
+                                feedName="Order Item Fulfillment" feedReceiveServiceName="moqui.example.MyExampleServices.test#DataDocumentFeed">
+        <documents dataDocumentId="OrderItemFulfillment"/>
+    </moqui.entity.feed.DataFeed>
+</entity-facade-xml>
