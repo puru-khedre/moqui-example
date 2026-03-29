@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+This software is in the public domain under CC0 1.0 Universal plus a
+Grant of Patent License.
+
+To the extent possible under law, the author(s) have dedicated all
+copyright and related and neighboring rights to this software to the
+public domain worldwide. This software is distributed without any
+warranty.
+
+You should have received a copy of the CC0 Public Domain Dedication
+along with this software (see the LICENSE.md file). If not, see
+<http://creativecommons.org/publicdomain/zero/1.0/>.
+-->
+<entities xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/entity-definition-3.xsd">
+    <view-entity entity-name="EligibleOrder" package="co.hotwax.retailpro">
+        <member-entity entity-alias="OH" entity-name="org.apache.ofbiz.order.order.OrderHeader"/>
+        <member-entity entity-alias="OI" entity-name="org.apache.ofbiz.order.order.OrderItem" join-from-alias="OH">
+            <key-map field-name="orderId"/>
+        </member-entity>
+        <member-entity entity-alias="OS" entity-name="org.apache.ofbiz.order.order.OrderShipment" join-from-alias="OI" join-optional="true">
+            <key-map field-name="orderId"/>
+            <key-map field-name="orderItemSeqId"/>
+            <key-map field-name="shipGroupSeqId"/>
+        </member-entity>
+        <member-entity entity-alias="S" entity-name="org.apache.ofbiz.shipment.shipment.Shipment" join-from-alias="OS" join-optional="true">
+            <key-map field-name="shipmentId"/>
+        </member-entity>
+        <alias name="orderId" entity-alias="OH"/>
+        <entity-condition>
+            <econdition entity-alias="OH" field-name="orderTypeId" value="SALES_ORDER"/>
+            <econdition entity-alias="OI" field-name="statusId" operator="not-in" value="ITEM_COMPLETED,ITEM_CANCELLED"/>
+            <econdition entity-alias="S" field-name="statusId" operator="not-equals" value="SHIPMENT_PACKED" or-null="true"/>
+        </entity-condition>
+    </view-entity>
+</entities>

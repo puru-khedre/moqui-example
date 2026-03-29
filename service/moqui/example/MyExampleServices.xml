@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+This software is in the public domain under CC0 1.0 Universal plus a
+Grant of Patent License.
+
+To the extent possible under law, the author(s) have dedicated all
+copyright and related and neighboring rights to this software to the
+public domain worldwide. This software is distributed without any
+warranty.
+
+You should have received a copy of the CC0 Public Domain Dedication
+along with this software (see the LICENSE.md file). If not, see
+<http://creativecommons.org/publicdomain/zero/1.0/>.
+-->
+<services xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/service-definition-3.xsd">
+    <service verb="test" noun="Example">
+        <actions>
+            <script>
+                docString = """[ {"_type":"OrderItemFulfillment","_id":"1::00101","_timestamp":"2025-09-16T12:19:11.759Z","_entity":"org.apache.ofbiz.order.order.OrderItem","orderId":"1","orderItemSeqId":"00101","itemStatusId":"ITEM_CANCELLED"}, {"_type":"OrderItemFulfillment","_id":"10::00101","_timestamp":"2025-09-16T12:19:11.759Z","_entity":"org.apache.ofbiz.order.order.OrderItem","orderId":"10","orderItemSeqId":"00101","itemStatusId":"ITEM_APPROVED"} ]"""
+                docs = new groovy.json.JsonSlurper().parseText(docString)
+            </script>
+            <service-call name="moqui.example.MyExampleServices.test#DataDocumentFeed" in-map="[documentList: docs]"/>
+        </actions>
+    </service>
+
+    <service verb="test" noun="DataDocumentFeed">
+        <implements service="org.moqui.EntityServices.receive#DataFeed"/>
+        <actions>
+            <iterate list="documentList.groupBy { it.orderId }" entry="orders">
+                <set field="orderDocs" from="orders.value"/>
+                <set field="orderId" from="orderDocs.get(0).orderId"/>
+                <set field="isCancelOrPacked" from="true"/>
+                <iterate list="orderDocs" entry="doc">
+                    <if condition="!(doc.itemStatusId == 'ITEM_CANCELLED' || doc.OrderShipment?.get(0)?.shipmentStatusId == 'SHIPMENT_PACKED')">
+                        <set field="isCancelOrPacked" from="false"/>
+                        <break/>
+                    </if>
+                </iterate>
+
+                <if condition="isCancelOrPacked">
+                    <entity-find entity-name="co.hotwax.retailpro.EligibleOrder" list="itemList">
+                        <econdition field-name="orderId"/>
+                    </entity-find>
+
+                    <if condition="!itemList">
+                        <log message="========= Order [orderId: ${orderId}] is eligible to send to retail pro"/>
+                    </if>
+                </if>
+            </iterate>
+        </actions>
+    </service>
+</services>
