@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<services xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/service-definition-3.xsd">
+
+    <!-- 1. Service to delete the whole definition of a DataDocument -->
+    <service verb="delete" noun="DataDocumentDefinition">
+        <in-parameters>
+            <parameter name="dataDocumentId" default-value="ShopifyProductSolr"/>
+        </in-parameters>
+        <actions>
+            <!-- Child records delete first -->
+            <entity-delete-by-condition entity-name="moqui.entity.document.DataDocumentField">
+                <econdition field-name="dataDocumentId"/>
+            </entity-delete-by-condition>
+            <entity-delete-by-condition entity-name="moqui.entity.document.DataDocumentRelAlias">
+                <econdition field-name="dataDocumentId"/>
+            </entity-delete-by-condition>
+            <entity-delete-by-condition entity-name="moqui.entity.document.DataDocumentCondition">
+                <econdition field-name="dataDocumentId"/>
+            </entity-delete-by-condition>
+            <entity-delete-by-condition entity-name="moqui.entity.document.DataDocumentLink">
+                <econdition field-name="dataDocumentId"/>
+            </entity-delete-by-condition>
+            <entity-delete-by-condition entity-name="moqui.entity.feed.DataFeedDocument">
+                <econdition field-name="dataDocumentId"/>
+            </entity-delete-by-condition>
+            <entity-delete-by-condition entity-name="moqui.entity.document.DataDocument">
+                <econdition field-name="dataDocumentId"/>
+            </entity-delete-by-condition>
+            <log level="info" message="DataDocument [${dataDocumentId}] definition and related fields deleted."/>
+        </actions>
+    </service>
+
+    <!-- 2. Service to fetch data for validation -->
+    <service verb="get" noun="DataDocumentData">
+        <in-parameters>
+            <parameter name="dataDocumentId" default-value="ShopifyProductSolr"/>
+            <parameter name="primaryKeyMap" type="Map"/>
+        </in-parameters>
+        <out-parameters>
+            <parameter name="documentList" type="List"/>
+        </out-parameters>
+        <actions>
+            <script>
+                ec.entity.makeDataLoader().location("component://example/data/ProductSolrDataDocument.xml").load()
+            </script>
+            <set field="primaryKeyMap" from="primaryKeyMap ?: [productId: ['10000', '10001']]"/>
+            <set field="condition" from="ec.entity.conditionFactory.makeCondition(primaryKeyMap)"/>
+            <set field="documentList" from="ec.entity.getDataDocuments(dataDocumentId, condition, null, null)"/>
+        </actions>
+    </service>
+
+    <!-- 2b. Native Moqui Manual Data Service for Solr Document Enrichment -->
+    <service verb="add" noun="ShopifyProductSolrManualData" type="script" location="component://example/script/org/moqui/example/ShopifyProductSolrManualData.groovy" authenticate="anonymous-all">
+        <implements service="org.moqui.EntityServices.add#ManualDocumentData"/>
+    </service>
+
+    <!-- 3. Data Feed Receive Service for testing -->
+    <service verb="receive" noun="TestDataFeed" authenticate="anonymous-all">
+        <implements service="org.moqui.EntityServices.receive#DataFeed"/>
+        <actions>
+            <log level="info" message="Received Feed [${dataFeedId}] with ${documentList?.size()} docs"/>
+            <iterate list="documentList" entry="doc">
+                <log level="info" message="Doc Data: ${groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(doc))}"/>
+            </iterate>
+        </actions>
+    </service>
+
+</services>
