@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<services xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/service-definition-3.xsd">
+
+    <!-- 1. Service to delete the whole definition of a DataDocument -->
+    <service verb="delete" noun="DataDocumentDefinition">
+        <in-parameters>
+            <parameter name="dataDocumentId" default-value="ShopifyProductSolr"/>
+        </in-parameters>
+        <actions>
+            <!-- Child records delete first -->
+            <entity-delete-by-condition entity-name="moqui.entity.document.DataDocumentField">
+                <econdition field-name="dataDocumentId"/>
+            </entity-delete-by-condition>
+            <entity-delete-by-condition entity-name="moqui.entity.document.DataDocumentRelAlias">
+                <econdition field-name="dataDocumentId"/>
+            </entity-delete-by-condition>
+            <entity-delete-by-condition entity-name="moqui.entity.document.DataDocumentCondition">
+                <econdition field-name="dataDocumentId"/>
+            </entity-delete-by-condition>
+            <entity-delete-by-condition entity-name="moqui.entity.document.DataDocumentLink">
+                <econdition field-name="dataDocumentId"/>
+            </entity-delete-by-condition>
+            <entity-delete-by-condition entity-name="moqui.entity.feed.DataFeedDocument">
+                <econdition field-name="dataDocumentId"/>
+            </entity-delete-by-condition>
+            <entity-delete-by-condition entity-name="moqui.entity.document.DataDocument">
+                <econdition field-name="dataDocumentId"/>
+            </entity-delete-by-condition>
+            <log level="info" message="DataDocument [${dataDocumentId}] definition and related fields deleted."/>
+        </actions>
+    </service>
+
+    <!-- 2. Service to fetch data for validation -->
+    <service verb="get" noun="DataDocumentData">
+        <in-parameters>
+            <parameter name="dataDocumentId" default-value="ShopifyProductSolr"/>
+            <parameter name="primaryKeyMap" type="Map"/>
+        </in-parameters>
+        <out-parameters>
+            <parameter name="documentList" type="List"/>
+        </out-parameters>
+        <actions>
+            <script>
+                ec.entity.makeDataLoader().location("component://example/data/ProductSolrDataDocument.xml").load()
+            </script>
+            <set field="primaryKeyMap" from="primaryKeyMap ?: [productId: ['10000', '10001']]"/>
+            <set field="condition" from="ec.entity.conditionFactory.makeCondition(primaryKeyMap)"/>
+            <set field="documentList" from="ec.entity.getDataDocuments(dataDocumentId, condition, null, null)"/>
+        </actions>
+    </service>
+
+    <!-- 2b. Native Moqui Manual Data Service for Solr Document Enrichment -->
+    <service verb="add" noun="ShopifyProductSolrManualData" type="script" location="component://example/script/org/moqui/example/ShopifyProductSolrManualData.groovy" authenticate="anonymous-all">
+        <implements service="org.moqui.EntityServices.add#ManualDocumentData"/>
+    </service>
+
+    <!-- 3. Data Feed Receive Service for testing -->
+    <service verb="receive" noun="TestDataFeed" authenticate="anonymous-all">
+        <implements service="org.moqui.EntityServices.receive#DataFeed"/>
+        <actions>
+            <log level="info" message="Received Feed [${dataFeedId}] with ${documentList?.size()} docs"/>
+            <iterate list="documentList" entry="doc">
+                <log level="info" message="Doc Data: ${groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(doc))}"/>
+            </iterate>
+            <!-- Call Moqui's native search index service to automatically index into ElasticSearch -->
+            <service-call name="org.moqui.search.SearchServices.index#DataDocuments" in-map="context"/>
+        </actions>
+    </service>
+
+    <!-- 4. Service to run full or incremental indexing of ShopifyProductSolr -->
+    <service verb="index" noun="ShopifyProductSolr" authenticate="anonymous-all">
+        <in-parameters>
+            <parameter name="fromUpdateStamp" type="Timestamp"/>
+            <parameter name="thruUpdateStamp" type="Timestamp"/>
+            <parameter name="jobName"/>
+            <parameter name="batchSize" type="Integer" default="100"/>
+            <parameter name="clusterName" default-value="default"/>
+        </in-parameters>
+        <out-parameters>
+            <parameter name="documentsIndexed" type="Integer"/>
+        </out-parameters>
+        <actions>
+            <set field="nowDate" from="ec.user.nowTimestamp"/>
+            
+            <!-- If run from a Service Job and fromUpdateStamp is not provided, fetch the last run time -->
+            <if condition="jobName &amp;&amp; !fromUpdateStamp">
+                <entity-find-one entity-name="moqui.service.job.ServiceJobParameter" value-field="lastRunParam">
+                    <field-map field-name="jobName"/>
+                    <field-map field-name="parameterName" value="lastRunTime"/>
+                </entity-find-one>
+                <if condition="lastRunParam?.parameterValue">
+                    <set field="fromUpdateStamp" from="new java.sql.Timestamp(Long.parseLong(lastRunParam.parameterValue))" type="Timestamp"/>
+                </if>
+            </if>
+            
+            <set field="thruUpdateStamp" from="thruUpdateStamp ?: nowDate"/>
+            
+            <log level="info" message="Indexing ShopifyProductSolr documents from: ${fromUpdateStamp} to: ${thruUpdateStamp}"/>
+
+            <script><![CDATA[
+                import java.sql.Timestamp
+                import org.moqui.context.ExecutionContext
+
+                ExecutionContext ec = context.ec
+                def elasticClient = ec.factory.elastic.getClient(clusterName)
+                if (elasticClient == null) {
+                    ec.message.addError("No Elastic Client found for cluster name ${clusterName}")
+                    return
+                }
+
+                String dataDocumentId = "ShopifyProductSolr"
+                Map dataDocument = ec.entity.fastFindOne("moqui.entity.document.DataDocument", true, false, dataDocumentId)
+                if (dataDocument?.indexName) {
+                    elasticClient.checkCreateDataDocumentIndexes((String) dataDocument.indexName)
+                }
+
+                // Call feedDataDocuments directly using clean parameters to bypass Moqui's native thruUpdatedStamp parameter typo bug
+                String feedReceiveServiceName = "moqui.example.DataDocumentServices.receive#TestDataFeed"
+                documentsIndexed = ec.entity.entityDataDocument.feedDataDocuments(
+                    dataDocumentId, 
+                    null, 
+                    fromUpdateStamp, 
+                    thruUpdateStamp, 
+                    feedReceiveServiceName, 
+                    batchSize
+                )
+            ]]></script>
+
+            <log level="info" message="Successfully indexed ${documentsIndexed} ShopifyProductSolr documents."/>
+
+            <!-- Update lastRunTime parameter for the Service Job if executed under one -->
+            <if condition="jobName">
+                <service-call name="store#moqui.service.job.ServiceJobParameter"
+                              in-map="[jobName: jobName, parameterName: 'lastRunTime', parameterValue: String.valueOf(nowDate.getTime())]"/>
+            </if>
+        </actions>
+    </service>
+
+</services>

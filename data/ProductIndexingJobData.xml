@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<entity-facade-xml type="seed">
+    <!-- 1. Register the Service Job for ShopifyProductSolr indexing -->
+    <moqui.service.job.ServiceJob jobName="index_ShopifyProductSolr" description="Index Shopify Product Solr"
+            serviceName="moqui.example.DataDocumentServices.index#ShopifyProductSolr" cronExpression="0 0/15 * * * ?" paused="Y"/>
+
+    <!-- 2. Initialize the lastRunTime parameter -->
+    <moqui.service.job.ServiceJobParameter jobName="index_ShopifyProductSolr" parameterName="lastRunTime" parameterValue=""/>
+</entity-facade-xml>

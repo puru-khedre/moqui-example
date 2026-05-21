@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<entity-facade-xml type="ext-upgrade">
+    <dataDocuments dataDocumentId="ShopifyProductSolr" documentName="Shopify Product Solr"
+                   primaryEntityName="org.apache.ofbiz.product.product.Product" documentTitle="Product Index Document"
+                   manualDataServiceName="moqui.example.DataDocumentServices.add#ShopifyProductSolrManualData">
+        
+        <!-- Condition to filter by BROWSE_ROOT category -->
+        <conditions conditionSeqId="01" fieldNameAlias="prodCatalogCategoryTypeIds" operator="equals" fieldValue="PCCT_BROWSE_ROOT"/>
+
+        <!-- 1. Core Product Fields -->
+        <fields fieldSeqId="01" fieldPath="productId"/>
+        <fields fieldSeqId="02" fieldPath="productTypeId"/>
+        <fields fieldSeqId="03" fieldPath="internalName"/>
+        <fields fieldSeqId="04" fieldPath="brandName"/>
+        <fields fieldSeqId="05" fieldPath="productName"/>
+        <fields fieldSeqId="06" fieldPath="description"/>
+        <!-- Introduction Date with Fallback logic in service -->
+        <fields fieldSeqId="07" fieldPath="introductionDate"/>
+        <fields fieldSeqId="071" fieldPath="createdDate"/>
+        <fields fieldSeqId="072" fieldPath="lastUpdatedStamp"/>
+        <fields fieldSeqId="08" fieldPath="isVirtual"/>
+        <fields fieldSeqId="09" fieldPath="isVariant"/>
+        <fields fieldSeqId="091" fieldPath="primaryProductCategoryId"/>
+
+        <!-- 2. Solr-Specific Core Fields -->
+        <fields fieldSeqId="14" fieldPath="internalName" fieldNameAlias="sku"/>
+        <fields fieldSeqId="15" fieldPath="detailImageUrl" fieldNameAlias="mainImageUrl"/>
+        <fields fieldSeqId="17" fieldPath="productId" fieldNameAlias="identifier"/>
+        <fields fieldSeqId="18" fieldPath="Primary#org.apache.ofbiz.product.category.ProductCategory:categoryName" fieldNameAlias="primaryProductCategoryName"/>
+        <fields fieldSeqId="19" fieldPath="Primary#org.apache.ofbiz.product.category.ProductCategory:ProdCatalogCategory:prodCatalogId" fieldNameAlias="primaryCatalogIds"/>
+        <relAliases relationshipName="Primary#org.apache.ofbiz.product.category.ProductCategory" documentAlias="primaryProductCategory"/>
+
+        <!-- 3. Flat Parent Info (Product Hierarchy - No relAliases used to ensure flattening) -->
+        <!-- Relationship to ProductAssoc where current product is 'productIdTo' -->
+        <fields fieldSeqId="10" fieldPath="Assoc#org.apache.ofbiz.product.product.ProductAssoc:productId" fieldNameAlias="groupId"/>
+        <fields fieldSeqId="11" fieldPath="Assoc#org.apache.ofbiz.product.product.ProductAssoc:Main#org.apache.ofbiz.product.product.Product:internalName" fieldNameAlias="groupName"/>
+        <fields fieldSeqId="12" fieldPath="Assoc#org.apache.ofbiz.product.product.ProductAssoc:Main#org.apache.ofbiz.product.product.Product:productName" fieldNameAlias="parentProductName"/>
+        <fields fieldSeqId="13" fieldPath="Assoc#org.apache.ofbiz.product.product.ProductAssoc:sequenceNum" fieldNameAlias="position"/>
+
+        <!-- 4. Nested Features (with active dates) -->
+        <fields fieldSeqId="20" fieldPath="ProductFeatureAppl:ProductFeature:productFeatureTypeId" fieldNameAlias="featureTypeId"/>
+        <fields fieldSeqId="21" fieldPath="ProductFeatureAppl:ProductFeature:description" fieldNameAlias="featureDescription"/>
+        <fields fieldSeqId="22" fieldPath="ProductFeatureAppl:fromDate" fieldNameAlias="fromDate"/>
+        <fields fieldSeqId="23" fieldPath="ProductFeatureAppl:thruDate" fieldNameAlias="thruDate"/>
+        <fields fieldSeqId="28" fieldPath="ProductFeatureAppl:ProductFeature:ProductFeatureType:description" fieldNameAlias="featureTypeDescription"/>
+        <relAliases relationshipName="ProductFeatureAppl" documentAlias="features"/>
+
+        <!-- Parent Features (for variant products) -->
+        <fields fieldSeqId="24" fieldPath="Assoc#org.apache.ofbiz.product.product.ProductAssoc:Main#org.apache.ofbiz.product.product.Product:ProductFeatureAppl:ProductFeature:productFeatureTypeId" fieldNameAlias="parentFeatureTypeId"/>
+        <fields fieldSeqId="25" fieldPath="Assoc#org.apache.ofbiz.product.product.ProductAssoc:Main#org.apache.ofbiz.product.product.Product:ProductFeatureAppl:ProductFeature:description" fieldNameAlias="parentFeatureDescription"/>
+        <fields fieldSeqId="26" fieldPath="Assoc#org.apache.ofbiz.product.product.ProductAssoc:Main#org.apache.ofbiz.product.product.Product:ProductFeatureAppl:fromDate" fieldNameAlias="parentFeatureFromDate"/>
+        <fields fieldSeqId="27" fieldPath="Assoc#org.apache.ofbiz.product.product.ProductAssoc:Main#org.apache.ofbiz.product.product.Product:ProductFeatureAppl:thruDate" fieldNameAlias="parentFeatureThruDate"/>
+        <fields fieldSeqId="29" fieldPath="Assoc#org.apache.ofbiz.product.product.ProductAssoc:Main#org.apache.ofbiz.product.product.Product:ProductFeatureAppl:ProductFeature:ProductFeatureType:description" fieldNameAlias="parentFeatureTypeDescription"/>
+
+        <!-- 5. Nested Identifications (UPC, SKU, etc) -->
+        <fields fieldSeqId="30" fieldPath="org.apache.ofbiz.product.product.GoodIdentification:goodIdentificationTypeId" fieldNameAlias="idType"/>
+        <fields fieldSeqId="31" fieldPath="org.apache.ofbiz.product.product.GoodIdentification:idValue" fieldNameAlias="idValue"/>
+        <relAliases relationshipName="org.apache.ofbiz.product.product.GoodIdentification" documentAlias="identifications"/>
+        
+        <fields fieldSeqId="32" fieldPath="co.hotwax.shopify.ShopifyShopProduct:shopId" fieldNameAlias="shopId"/>
+        <fields fieldSeqId="33" fieldPath="co.hotwax.shopify.ShopifyShopProduct:shopifyProductId" fieldNameAlias="shopifyProductId"/>
+        <relAliases relationshipName="co.hotwax.shopify.ShopifyShopProduct" documentAlias="shopifyShopProducts"/>
+
+        <!-- 6. Nested Pricing -->
+        <fields fieldSeqId="40" fieldPath="org.apache.ofbiz.product.price.ProductPrice:price" fieldNameAlias="price"/>
+        <fields fieldSeqId="41" fieldPath="org.apache.ofbiz.product.price.ProductPrice:productPriceTypeId" fieldNameAlias="type"/>
+        <fields fieldSeqId="42" fieldPath="org.apache.ofbiz.product.price.ProductPrice:productPricePurposeId" fieldNameAlias="purpose"/>
+        <fields fieldSeqId="43" fieldPath="org.apache.ofbiz.product.price.ProductPrice:currencyUomId" fieldNameAlias="currency"/>
+        <fields fieldSeqId="44" fieldPath="org.apache.ofbiz.product.price.ProductPrice:productStoreGroupId" fieldNameAlias="storeGroup"/>
+        <relAliases relationshipName="org.apache.ofbiz.product.price.ProductPrice" documentAlias="prices"/>
+        <!-- 7. Nested Store & Catalog (Renamed to match categories/ProdCatalogCategory/ProductStoreCatalog hierarchy) -->
+        <fields fieldSeqId="50" fieldPath="ProductCategoryMember:ProductCategory:ProdCatalogCategory:prodCatalogId" fieldNameAlias="prodCatalogIds"/>
+        <fields fieldSeqId="51" fieldPath="ProductCategoryMember:ProductCategory:ProdCatalogCategory:ProdCatalog:ProductStoreCatalog:productStoreId" fieldNameAlias="productStoreIds"/>
+        <fields fieldSeqId="52" fieldPath="ProductCategoryMember:ProductCategory:ProdCatalogCategory:ProdCatalog:ProductStoreCatalog:productStoreId" fieldNameAlias="productStoreIds_s"/>
+        <fields fieldSeqId="53" fieldPath="ProductCategoryMember:ProductCategory:ProdCatalogCategory:prodCatalogCategoryTypeId" fieldNameAlias="prodCatalogCategoryTypeIds"/>
+        
+        <!-- Active Dates for Filtering -->
+        <fields fieldSeqId="54" fieldPath="ProductCategoryMember:fromDate" fieldNameAlias="categoryFromDate"/>
+        <fields fieldSeqId="55" fieldPath="ProductCategoryMember:thruDate" fieldNameAlias="categoryThruDate"/>
+        <fields fieldSeqId="56" fieldPath="ProductCategoryMember:ProductCategory:ProdCatalogCategory:fromDate" fieldNameAlias="catalogFromDate"/>
+        <fields fieldSeqId="57" fieldPath="ProductCategoryMember:ProductCategory:ProdCatalogCategory:thruDate" fieldNameAlias="catalogThruDate"/>
+        <fields fieldSeqId="58" fieldPath="ProductCategoryMember:ProductCategory:ProdCatalogCategory:ProdCatalog:ProductStoreCatalog:fromDate" fieldNameAlias="storeFromDate"/>
+        <fields fieldSeqId="59" fieldPath="ProductCategoryMember:ProductCategory:ProdCatalogCategory:ProdCatalog:ProductStoreCatalog:thruDate" fieldNameAlias="storeThruDate"/>
+        
+        <relAliases relationshipName="ProductCategoryMember" documentAlias="categories"/>
+        <relAliases relationshipName="ProdCatalogCategory" documentAlias="ProdCatalogCategory"/>
+        <relAliases relationshipName="ProductStoreCatalog" documentAlias="ProductStoreCatalog"/>
+
+        <!-- 8. Nested Keywords (Tags) -->
+        <fields fieldSeqId="60" fieldPath="org.apache.ofbiz.product.product.ProductKeyword:keyword" fieldNameAlias="keyword"/>
+        <fields fieldSeqId="61" fieldPath="org.apache.ofbiz.product.product.ProductKeyword:keywordTypeId" fieldNameAlias="keywordType"/>
+        <fields fieldSeqId="62" fieldPath="org.apache.ofbiz.product.product.ProductKeyword:statusId" fieldNameAlias="keywordStatus"/>
+        <relAliases relationshipName="org.apache.ofbiz.product.product.ProductKeyword" documentAlias="keywords"/>
+
+        <!-- Links to Product Page and Entity Data Edit -->
+        <links linkSeqId="01" label="Oms Product Page" linkUrl="https://localhost:8443/commerce/control/ViewProduct?productId=${productId}" urlType="plain"/>
+        <links linkSeqId="02" label="Edit Product" linkUrl="/qapps/tools/Entity/DataEdit/EntityDataEdit?productId=${productId}&amp;selectedEntity=org.apache.ofbiz.product.product.Product" urlType="plain"/>
+    </dataDocuments>
+
+    <!-- Data Feed connecting the document to your new test receive service -->
+    <moqui.entity.feed.DataFeed dataFeedId="ShopifyProductSolr" dataFeedTypeEnumId="DTFDTP_RT_PUSH"
+                                feedName="Shopify Product Solr Feed" 
+                                feedReceiveServiceName="moqui.example.DataDocumentServices.receive#TestDataFeed">
+        <documents dataDocumentId="ShopifyProductSolr"/>
+    </moqui.entity.feed.DataFeed>
+
+</entity-facade-xml>
