@@ -62,6 +62,77 @@
             <iterate list="documentList" entry="doc">
                 <log level="info" message="Doc Data: ${groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(doc))}"/>
             </iterate>
+            <!-- Call Moqui's native search index service to automatically index into ElasticSearch -->
+            <service-call name="org.moqui.search.SearchServices.index#DataDocuments" in-map="context"/>
+        </actions>
+    </service>
+
+    <!-- 4. Service to run full or incremental indexing of ShopifyProductSolr -->
+    <service verb="index" noun="ShopifyProductSolr" authenticate="anonymous-all">
+        <in-parameters>
+            <parameter name="fromUpdateStamp" type="Timestamp"/>
+            <parameter name="thruUpdateStamp" type="Timestamp"/>
+            <parameter name="jobName"/>
+            <parameter name="batchSize" type="Integer" default="100"/>
+            <parameter name="clusterName" default-value="default"/>
+        </in-parameters>
+        <out-parameters>
+            <parameter name="documentsIndexed" type="Integer"/>
+        </out-parameters>
+        <actions>
+            <set field="nowDate" from="ec.user.nowTimestamp"/>
+            
+            <!-- If run from a Service Job and fromUpdateStamp is not provided, fetch the last run time -->
+            <if condition="jobName &amp;&amp; !fromUpdateStamp">
+                <entity-find-one entity-name="moqui.service.job.ServiceJobParameter" value-field="lastRunParam">
+                    <field-map field-name="jobName"/>
+                    <field-map field-name="parameterName" value="lastRunTime"/>
+                </entity-find-one>
+                <if condition="lastRunParam?.parameterValue">
+                    <set field="fromUpdateStamp" from="new java.sql.Timestamp(Long.parseLong(lastRunParam.parameterValue))" type="Timestamp"/>
+                </if>
+            </if>
+            
+            <set field="thruUpdateStamp" from="thruUpdateStamp ?: nowDate"/>
+            
+            <log level="info" message="Indexing ShopifyProductSolr documents from: ${fromUpdateStamp} to: ${thruUpdateStamp}"/>
+
+            <script><![CDATA[
+                import java.sql.Timestamp
+                import org.moqui.context.ExecutionContext
+
+                ExecutionContext ec = context.ec
+                def elasticClient = ec.factory.elastic.getClient(clusterName)
+                if (elasticClient == null) {
+                    ec.message.addError("No Elastic Client found for cluster name ${clusterName}")
+                    return
+                }
+
+                String dataDocumentId = "ShopifyProductSolr"
+                Map dataDocument = ec.entity.fastFindOne("moqui.entity.document.DataDocument", true, false, dataDocumentId)
+                if (dataDocument?.indexName) {
+                    elasticClient.checkCreateDataDocumentIndexes((String) dataDocument.indexName)
+                }
+
+                // Call feedDataDocuments directly using clean parameters to bypass Moqui's native thruUpdatedStamp parameter typo bug
+                String feedReceiveServiceName = "moqui.example.DataDocumentServices.receive#TestDataFeed"
+                documentsIndexed = ec.entity.entityDataDocument.feedDataDocuments(
+                    dataDocumentId, 
+                    null, 
+                    fromUpdateStamp, 
+                    thruUpdateStamp, 
+                    feedReceiveServiceName, 
+                    batchSize
+                )
+            ]]></script>
+
+            <log level="info" message="Successfully indexed ${documentsIndexed} ShopifyProductSolr documents."/>
+
+            <!-- Update lastRunTime parameter for the Service Job if executed under one -->
+            <if condition="jobName">
+                <service-call name="store#moqui.service.job.ServiceJobParameter"
+                              in-map="[jobName: jobName, parameterName: 'lastRunTime', parameterValue: String.valueOf(nowDate.getTime())]"/>
+            </if>
         </actions>
     </service>
 

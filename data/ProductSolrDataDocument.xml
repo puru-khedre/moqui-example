@@ -92,6 +92,9 @@
         <fields fieldSeqId="62" fieldPath="org.apache.ofbiz.product.product.ProductKeyword:statusId" fieldNameAlias="keywordStatus"/>
         <relAliases relationshipName="org.apache.ofbiz.product.product.ProductKeyword" documentAlias="keywords"/>
 
+        <!-- Links to Product Page and Entity Data Edit -->
+        <links linkSeqId="01" label="Oms Product Page" linkUrl="https://localhost:8443/commerce/control/ViewProduct?productId=${productId}" urlType="plain"/>
+        <links linkSeqId="02" label="Edit Product" linkUrl="/qapps/tools/Entity/DataEdit/EntityDataEdit?productId=${productId}&amp;selectedEntity=org.apache.ofbiz.product.product.Product" urlType="plain"/>
     </dataDocuments>
 
     <!-- Data Feed connecting the document to your new test receive service -->
